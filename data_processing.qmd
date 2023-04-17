@@ -1,0 +1,112 @@
+---
+title: "model_creation"
+format: html
+editor: visual
+---
+
+
+```{r initialsetup, include=FALSE}
+# For suggestions
+chooseCRANmirror(graphics=FALSE, ind=1)
+knitr::opts_chunk$set(echo = TRUE,tidy=TRUE)
+show_q = FALSE
+show_s = FALSE
+# Then include suggestions file
+# ```{r child='Lab1_Quiz_s.Rmd', eval = show_s}
+```
+
+```{r, setup}
+library(EBImage)
+```
+# Before processing
+
+Make sure the needed files are in the correct directory
+
+```{r}
+tifFile = "data/data_processed/morphology_focus.tif"
+if (!file.exists(tifFile)) {
+  options(java.parameters = "-Xmx10g")
+  library(RBioFormats)
+  checkJavaMemory()
+  img_ome = RBioFormats::read.image("data/data_raw/morphology_focus.ome.tif",
+                                    read.metadata = FALSE,
+                                    normalize = TRUE)
+  
+  img = img_ome[[1]]@.Data
+  EBImage::writeImage(x = img,
+                      files = tifFile,
+                      type = "tiff")
+}
+```
+
+```{r}
+img = EBImage::readImage(tifFile)
+```
+
+```{r}
+cell_boundaries = read.csv("data/data_processed/cell_boundaries.csv.gz", header = TRUE)
+cell_boundaries$vertex_x_trans = cell_boundaries$vertex_x/0.2125
+cell_boundaries$vertex_y_trans = cell_boundaries$vertex_y/0.2125
+```
+
+```{r}
+clusters = read.csv("data/data_processed/clusters.csv")
+head(clusters)
+ncells = nrow(clusters)
+```
+
+```{r}
+set.seed(2023)
+
+ncells_subset = 1000
+
+cells_subset = sample(ncells,ncells)
+table(clusters[cells_subset,"Cluster"], useNA = "always")
+
+for (i in 1:ncells_subset) {
+  
+  # extract the boundary vertices for the selected cell
+  bounds_i = subset(cell_boundaries,cell_id == i)
+  
+  # extract the cluster value for the selected cell
+  clustval_i = clusters[i,"Cluster"]
+  
+  # extract the pixel intensities for the area covering the cell boundary
+  img_sub = img[min(bounds_i$vertex_x_trans):max(bounds_i$vertex_x_trans),
+                min(bounds_i$vertex_y_trans):max(bounds_i$vertex_y_trans)]
+  
+  # normalise the pixel intensities according to 99th percentile
+  img_sub_norm = img_sub/quantile(img_sub, 0.99)
+  
+  # as an example, display the image for the first selected cell
+  if (i %in% cells_subset[1:5]) {
+    print(paste0("displaying image for cell ", i))
+    EBImage::display(img_sub/quantile(img_sub, 0.99))
+  }
+  
+  # if there is no folder for cell_images, create one
+  if (!file.exists("data/data_processed/cell_images/")) {
+    system("mkdir data/data_processed/cell_images/")
+  }
+  
+  # if there is no folder for the cluster, create one
+  clustval_i_directory = paste0("data/data_processed/cell_images/",clustval_i)
+  if (!file.exists(clustval_i_directory)) {
+    system(paste0("mkdir ", clustval_i_directory))
+  }
+  
+  # save the extracted image as a png file
+  EBImage::writeImage(x = img_sub_norm,
+                      files = paste0(clustval_i_directory, "/cell_", i, ".png"),
+                      type = "png")
+  
+}
+```
+
+```{r}
+sessionInfo()
+```
+
+```{r}
+knitr::knit_exit()
+```
