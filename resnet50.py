@@ -89,7 +89,6 @@ validation_generator = val_datagen.flow_from_dataframe(
 # Load the pre-trained ResNet50 model without the top (classification) layer
 base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
 
-
 # Fine-tune only the top layers, freeze the rest
 for layer in base_model.layers:
     layer.trainable = False
