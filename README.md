@@ -7,17 +7,22 @@ To generate cell images, navigate to `Biotechnology/scripts/DATA3888_Biotechnolo
 # Data Cleaning and Preprocessing & Splitting data into Train-validation and test in 80:20 ratio
 Using "Data_Preprocessing.Rmd", and make sure this file is in same directory path as the Biotechnology folder
 
-# Model Development and Evaluation
-Read the provided ipynb files to access the code and documentation for model development and evaluation. These files contain the necessary information to understand the models and their performance.
+# Model Development
+Codes to run each models are stored in the "Model_codes" folder which contains 8 ipynb format files, each corresponding to a trained model. 
+Read the provided ipynb files to access the code and documentation for model development and evaluation. These files contain the necessary information to understand the models and their performance. Each of this files will create a confusion matrix with hierachical clustering, an output containing prediction details and the test accyuracy and test loss in csv file format, and a training process csv, and grad-cam/SAAV depending on whether the model is transformers or cnn. Save them into your local directory. 
 
-# Integrating Model Outputs
-To integrate the output of the models with other omics data, follow the instructions provided in the project documentation. 
+# Evaluate 
+Read the ".Rmd" files to read the training process history for each model and the accuracy plots comparison for all models. 
 
-This step is crucial for deploying the models effectively and obtaining meaningful insights.
+
+
+
+# Integrating Model Outputs with omics data and 
+
 
 
 
 # Deployment of Shiny Apps
-To deploy the Shiny Apps successfully, ensure that you have the "Shiny_Apps.Rmd" files in the same directory as the "Shiny_Output" folder. The "Shiny_Output" folder contains the output files of the eight models. This setup will enable the Shiny Apps to access and utilize the model outputs.
+To deploy the Shiny Apps successfully, ensure that you have the "Shiny_Apps.Rmd" files in the same directory as the "shiny_output" folder. The "shiny_output" folder contains the output files of the eight models. This setup will enable the Shiny Apps to access and utilize the model outputs.
 
 For more detailed instructions and code explanations, refer to the individual files and documentation provided within this repository.
