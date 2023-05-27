@@ -4,8 +4,8 @@ This project, titled DATA3888_image_4, focuses on cell image analysis and model 
 # Generating Cell Images
 To generate cell images, use the "Generate_Images.Rmd" file provided in this repository. This script will create cell images and organize them in a hierarchical folder structure.
 
-# Data Cleaning and Preprocessing
-Perform data cleaning and preprocessing steps on the generated cell images. This will ensure that the images are ready for model development and analysis.
+# Data Cleaning and Preprocessing & Splitting data into Train-validation and test in 80:20 ratio
+Using "Data_Preprocessing.Rmd", and make sure this file is in same directory path as the Biotechnology folder
 
 # Model Development and Evaluation
 Read the provided ipynb files to access the code and documentation for model development and evaluation. These files contain the necessary information to understand the models and their performance.
