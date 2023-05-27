@@ -9,13 +9,10 @@ Using "Data_Preprocessing.Rmd", and make sure this file is in same directory pat
 
 # Model Development
 Codes to run each models are stored in the "Model_codes" folder which contains 8 ipynb format files, each corresponding to a trained model. 
-Read the provided ipynb files to access the code and documentation for model development and evaluation. These files contain the necessary information to understand the models and their performance. Each of this files will create a confusion matrix with hierachical clustering, an output containing prediction details and the test accyuracy and test loss in csv file format, and a training process csv, and grad-cam/SAAV depending on whether the model is transformers or cnn. Save them into your local directory. 
+Read the provided ipynb files to access the code and documentation for model development and evaluation. These files contain the necessary information to understand the models and their performance. Each of this files will create a confusion matrix with hierachical clustering, an output containing prediction details and the test accyuracy and test loss in csv file format, and a training process csv, and grad-cam/SAAV depending on whether the model is transformers or cnn. The output files are saved in a folder named "Model_result" under 
 
 # Evaluate 
-Read the ".Rmd" files to read the training process history for each model and the accuracy plots comparison for all models. 
-
-
-
+Read the "Model_evaluation.Rmd" files to read the training process history for each model and the accuracy plots comparison for all 8 models. 
 
 # Integrating Model Outputs with omics data and 
 
