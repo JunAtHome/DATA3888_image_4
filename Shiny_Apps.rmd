@@ -1,5 +1,5 @@
 ---
-title: "Presentation_demo"
+title: "Shiny Apps"
 output: html_document
 date: "2023-05-19"
 runtime: shiny
@@ -59,6 +59,7 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   # Read the selected CSV file based on user input
   data <- reactive({
+    # change the file path to the location of "shiny_output" folder in your local devices 
     read.csv(paste0("/Users/mac/Desktop/shiny_output/", input$models, ".csv"))
   })
   
