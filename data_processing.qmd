@@ -4,7 +4,6 @@ format: html
 editor: visual
 ---
 
-
 ```{r initialsetup, include=FALSE}
 # For suggestions
 chooseCRANmirror(graphics=FALSE, ind=1)
@@ -18,6 +17,7 @@ show_s = FALSE
 ```{r, setup}
 library(EBImage)
 ```
+
 # Before processing
 
 Make sure the needed files are in the correct directory
