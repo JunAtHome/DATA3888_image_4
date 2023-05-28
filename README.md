@@ -1,6 +1,21 @@
 # Project Overview
 This project, titled DATA3888_image_4, focuses on cell image analysis and model development for classification tasks. The project involves several steps, including data collection, initial data analysis, data cleaning and preprocessing, model development and evaluation, integrating model outputs with other omics data, and deployment of Shiny Apps.
 
+# Reproduce report 
+Download the "Whole Project" zip file, extract all files and run the DATAT3888 RMD files 
+
+# Deployment of Shiny Apps
+To deploy the Shiny Apps successfully, ensure that you have the "Shiny_Apps.Rmd" files in the same directory as the "shiny_output" folder. The "shiny_output" folder contains the output files of the eight models. This setup will enable the Shiny Apps to access and utilize the model outputs.
+
+# Generate csv files used for shiny apps 
+Run the "Data Integration.Rmd" files within the zip file 
+
+
+
+
+
+
+
 # Generating Cell Images
 To generate cell images, navigate to `Biotechnology/scripts/DATA3888_Biotechnology_generateImages_2023.Rmd` to extract the images. This script will create cell images and organise them in a hierarchical folder structure.
 
@@ -16,6 +31,12 @@ Read the "Model_evaluation.Rmd" files to read the training process history for e
 
 # Integrating Model Outputs with omics data and 
 
+
+
+
+
+# Reproduce report 
+Download the "Whole Project" zip file, extract all files and run the DATAT3888 RMD files 
 
 
 
