@@ -1,0 +1,326 @@
+---
+title: "Data Integration "
+output: html_document
+date: "2023-04-14"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(EBImage)
+library(tidyverse)
+library(pracma)
+library(randomForest)
+library(ggimage)
+library(tensorflow)
+library(reticulate)
+library(keras)
+library(shiny)
+library(stringr)
+library(keras)
+```
+
+## Plotting a barplot for comparison of performance 
+
+```{r}
+# Make sure the "Model_result" folder is in the same directory as below, else change your file path
+library(ggplot2)
+output1 = read.csv("Biotechnology/Model_result/output_clean_independent_cnn.csv")
+output2 = read.csv("Biotechnology/Model_result/output_raw_independent_cnn.csv")
+output3 = read.csv("Biotechnology/Model_result/output_clean_stratified_cnn.csv")
+output4 = read.csv("Biotechnology/Model_result/output_raw_stratified_cnn.csv")
+output5 = read.csv("Biotechnology/Model_result/output_clean_independent_transformers.csv")
+output6 = read.csv("Biotechnology/Model_result/output_raw_independent_transformers.csv")
+output7 = read.csv("Biotechnology/Model_result/output_clean_stratified_transformers.csv")
+output8 = read.csv("Biotechnology/Model_result/output_raw_stratified_transformers.csv")
+head(output1)
+```
+
+
+Generate output for shiny apps  
+```{r}
+
+# extract the names path for all clusters 
+# change the file path as required 
+all_cluster = list.files("Biotechnology/data_processed/cell_images/",
+                             full.names = TRUE)
+
+sort_key <- function(path) {
+  # Extract the numeric portion of the file name
+  num_str <- gsub("[^0-9]", "", path)
+  # Convert the numeric portion to an integer and return it as the sorting key
+  return(ifelse(num_str == "", Inf, as.integer(num_str)))
+}
+
+all_cluster <- all_cluster[order(sapply(all_cluster, sort_key))]
+
+# run a loop to combine a certain number of samples into one big list
+
+imgs_masked_resized_50 = c()
+
+for (i in 1:28){
+  cluster_i = list.files(all_cluster[i], full.names = TRUE) 
+  
+  n_total = length(cluster_i)
+  
+  index = sample(1:n_total, 36)
+  
+  samples = cluster_i[index]
+  
+  imgs_masked_resized_50 = c(imgs_masked_resized_50, samples)
+
+}
+```
+
+
+```{r}
+# Load necessary packages
+library(utils)
+library(base)
+library(ggplot2)
+library(plotly)
+
+# Set path to compressed csv file
+path_to_file <- "Biotechnology/data_raw/Xenium_V1_FF_Mouse_Brain_Coronal_Subset_CTX_HP_outs/cells.csv.gz"
+
+
+# Read compressed csv file
+df <- read.csv(gzfile(path_to_file))
+head(df)
+
+
+# Add another column to the df for cluster 
+# number = sample(1:28, nrow(df), replace = TRUE)
+# df$cluster <- as.factor(number)
+
+# Initialize vector to store cluster for each cell
+cell_id <- c()
+cluster <- c()
+
+
+# Loop through each cluster folder
+for (i in 1:length(all_cluster)) {
+  # Get list of cell image file names in cluster folder
+  cell_files <- list.files(all_cluster[[i]],full.names = TRUE )
+  
+  # Extract cluster number
+  cluster_i <- as.numeric(gsub(".*cluster_(\\d+).*", "\\1", all_cluster[[i]]))
+  
+  # Extract cell id
+  cell_id_i <- as.numeric(gsub(".*cell_(\\d+)\\.png", "\\1", cell_files))
+  
+ 
+  
+  # Append to existing vectors
+  cell_id <- c(cell_id, cell_id_i)
+  cluster <- c(cluster, rep(cluster_i, length(cell_id_i)))
+ 
+}
+
+# Create a data frame
+tab <- data.frame(cell_id, cluster)
+
+# Change the column names
+colnames(tab) <- c("cell_id", "True_cluster")
+df <- merge(tab, df, by = "cell_id", all.x = TRUE)
+# Convert cluster variable to factor
+df$True_cluster <- as.factor(df$True_cluster)
+```
+
+```{r}
+## Reading the output from model 1 and its prediction 
+
+output1 = read.csv("Biotechnology/Model_result/output_clean_independent_cnn.csv")
+output2 = read.csv("Biotechnology/Model_result/output_raw_independent_cnn.csv")
+output3 = read.csv("Biotechnology/Model_result/output_clean_stratified_cnn.csv")
+output4 = read.csv("Biotechnology/Model_result/output_raw_stratified_cnn.csv")
+output5 = read.csv("Biotechnology/Model_result/output_clean_independent_transformers.csv")
+output6 = read.csv("Biotechnology/Model_result/output_raw_independent_transformers.csv")
+output7 = read.csv("Biotechnology/Model_result/output_clean_stratified_transformers.csv")
+output8 = read.csv("Biotechnology/Model_result/output_raw_stratified_transformers.csv")
+
+```
+
+```{r}
+
+file_names = c("Biotechnology/Model_result/output_clean_independent_cnn.csv",
+               "Biotechnology/Model_result/output_raw_independent_cnn.csv",
+               "Biotechnology/Model_result/output_clean_stratified_cnn.csv", "Biotechnology/Model_result/output_raw_stratified_cnn.csv", "Biotechnology/Model_result/output_clean_independent_transformers.csv", "Biotechnology/Model_result/output_raw_independent_transformers.csv", "Biotechnology/Model_result/output_clean_stratified_transformers.csv", "Biotechnology/Model_result/output_raw_stratified_transformers.csv")
+
+df_merged_list <- list()
+
+# Loop over the files
+for (i in 1:8) {
+  # Read the output file
+  output_file <- paste0(file_names[i])
+  output <- read.csv(output_file)
+  
+  # Rename the first column
+  colnames(output)[1] <- "cell_id"
+  
+  # Extract numeric values from "cluster" column
+  output$Label.1 <- as.factor(sub("cluster_", "", output$Label.1))
+  output$Label.2 <- as.factor(sub("cluster_", "", output$Label.2))
+  output$Label.3 <- as.factor(sub("cluster_", "", output$Label.3))
+  
+  # Merge the output with df
+  df_merged <- merge(output, df, by = "cell_id", all.x = TRUE)
+  
+  # Add the merged dataframe to the list
+  df_merged_list[[i]] <- df_merged
+}
+
+
+
+
+# colnames(output1)[1] <- "cell_id"
+# 
+# # Extract numeric values from "cluster" column
+# output1$Label.1 <- as.factor(sub("cluster_", "", output1$Label.1))
+# output1$Label.2 <- as.factor(sub("cluster_", "", output1$Label.2))
+# output1$Label.3 <- as.factor(sub("cluster_", "", output1$Label.3))
+# 
+# test_accuracy1 = unique(output1$Test.Accuracy)
+# test_loss1 = unique(output1$Test.Loss)
+# 
+# ## Merge this output with df merged
+# df_merged <- merge(output1, df, by = "cell_id", all.x = TRUE)
+# 
+# head(df_merged)
+
+head(df_merged_list[[1]])
+```
+
+```{r}
+library(stringr)
+
+exp = read.csv("Biotechnology/data_raw/Xenium_V1_FF_Mouse_Brain_Coronal_Subset_CTX_HP_outs/analysis/diffexp/gene_expression_graphclust/differential_expression.csv")
+
+# Identify the "Cluster.X.Log2.fold.change" columns
+cluster_cols <- colnames(exp)[str_detect(colnames(exp), "Cluster\\.\\d+\\.Log2\\.fold\\.change")]
+
+# Create a list to store the top 5 genes for each cluster
+top_genes <- list()
+
+# Loop through each cluster column
+for (col_name in cluster_cols) {
+  # Sort the data frame by the current cluster column
+  sorted_df <- exp %>% arrange(desc(!!sym(col_name)))
+  
+  # Extract the top 5 genes for the current cluster
+  top_genes[[col_name]] <- sorted_df %>%
+    select(Feature.Name) %>%
+    head(5)
+}
+
+#create a dataframe 
+final = NA
+final = data.frame(cluster = 1:28, genes1 = NA, genes2 = NA, genes3 = NA , genes4 = NA, genes5 = NA)
+
+for (i in 1:28){
+     final[i,'genes1'] = eval(parse(text = paste0("top_genes$Cluster.",i, ".Log2.fold.change[1,1]")))
+     final[i, 'genes2'] = eval(parse(text = paste0("top_genes$Cluster.",i, ".Log2.fold.change[2,1]")))
+     final[i, 'genes3'] = eval(parse(text = paste0("top_genes$Cluster.",i, ".Log2.fold.change[3,1]")))
+     final[i, 'genes4'] = eval(parse(text = paste0("top_genes$Cluster.",i, ".Log2.fold.change[4,1]")))
+     final[i, 'genes5'] = eval(parse(text = paste0("top_genes$Cluster.",i, ".Log2.fold.change[5,1]")))
+     
+}
+head(final)
+#df_merged <- merge(df_merged, final, by = "cluster", all.x = TRUE)
+
+Model_merged <- list()
+for (i in 1:8){
+  # Merge dataframes on different column names
+  Model <- merge(df_merged_list[[i]], final, by.x = "Label.1", by.y = "cluster")
+  # Add the merged dataframe to the list
+  Model_merged[[i]] <- Model
+}
+```
+
+Integrate 5 corresponding cell types and perform majority voting
+```{r}
+
+# read the csv files on genes name with corresponding cell types
+genes_function = read.csv("Biotechnology/data_raw/Xenium_V1_FF_Mouse_Brain_Coronal_Input_gene_groups.csv", header = FALSE)
+
+
+head(genes_function)
+colnames(genes_function) = c("Genes Name", "Types")
+head(genes_function)
+# Remove the third column of genes_function
+genes_function <- genes_function[, -3]
+
+# Remove rows with missing or empty values in any column
+genes_function <- genes_function[complete.cases(genes_function), ]
+summary(genes_function)
+
+for (j in 1: 8){
+  for (i in 1:5) {
+  colname <- paste0("genes", i)
+  cell_type_colname <- paste0("cell_type_", i)
+  genes_function_colnames <- c("Genes Name", cell_type_colname)
+
+  # Rename the cell type column to cell_type_i
+  names(genes_function)[2] <- cell_type_colname
+
+  # Merge df_merged with genes_function using the genes column and rename the cell type column
+  Model_new <- merge(Model_merged[[j]], genes_function[, genes_function_colnames],
+                      by.x = colname, by.y = "Genes Name")
+  Model_merged[[j]] = Model_new
+
+  }
+}
+head(Model_merged[[8]])
+
+
+for (i in 1:8){
+  
+  # create a new column where the majority class of the cell types are shown # Create a new column for the majority cell type
+Model_merged[[i]]$majority_cell_type <- apply(Model_merged[[i]][, paste0("cell_type_", 1:5)], 1, function(x) {
+  # Check the frequency of each unique cell type in the row
+  freq_table <- table(x)
+
+  # Check if any cell type appears more than 3 times
+  if (any(freq_table >= 3)) {
+    return(names(which.max(freq_table)))
+  } else {
+    return("No majority cell types")
+  }
+})
+  
+}
+```
+
+# create the model file 
+
+```{r}
+library(data.table)
+model_na = c("CNN Model : Independent Split - Clean Data", "CNN Model : Independent Split - Raw Data","CNN Model : Stratified Split - Clean Data","CNN Model : Stratified Split - Raw Data",
+             "Transformers Model : Independent Split - Clean Data", "Transformers Model : Transformers Split - Raw Data","Transformers Model : Stratified Split - Clean Data","Transformers Model : Stratified Split - Raw Data")
+
+for ( i in 1:8){
+
+  
+  # Create a new column 'new_column' with default value 0
+  Model_merged[[i]]$status <- 0
+
+  # Update the values in 'new_column' based on the condition
+  Model_merged[[i]]$status <- ifelse(as.numeric(Model_merged[[i]]$True_cluster) == as.numeric(Model_merged[[i]]$Label.1), 1, 0)
+
+  # Assuming your dataframe is named "mydata"
+  new_value <- model_na[i]  #
+
+  Model_merged[[i]] <- data.frame(Model_merged[[i]], Title = new_value)
+
+  # Create the folder if it doesn't exist
+  if (!file.exists("shiny_output_testing")) {
+  dir.create("shiny_output_testing")
+  }
+
+  fwrite(Model_merged[[i]], file.path("shiny_output_testing", paste0("Model_", i, ".csv")))
+  
+}
+
+```

@@ -1,0 +1,261 @@
+---
+title: "Data preprocessing"
+author: "JH"
+date: "2023-04-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Data preparation and cleaning
+
+```{r}
+library(EBImage)
+library(tidyverse)
+library(pracma)
+library(randomForest)
+library(ggimage)
+
+
+
+# create a loop to run through each cell clusters and resize the image to same size 
+# 28 clusters
+
+# extract the names path for all clusters 
+all_cluster = list.files("Biotechnology/data_processed/cell_images/",
+                             full.names = TRUE)
+
+sort_key <- function(path) {
+  # Extract the numeric portion of the file name
+  num_str <- gsub("[^0-9]", "", path)
+  # Convert the numeric portion to an integer and return it as the sorting key
+  return(ifelse(num_str == "", Inf, as.integer(num_str)))
+}
+
+all_cluster <- all_cluster[order(sapply(all_cluster, sort_key))]
+
+# read the boundaries csv
+cell_boundaries_raw = read.csv("Biotechnology/data_processed/cell_boundaries.csv.gz")
+head(cell_boundaries_raw)
+dim(cell_boundaries_raw)
+
+```
+
+```{r}
+
+# given a cellID of the image, the image, and the cell boundaries of that clusters, return a binary image which shows everything outside of boundary as 0.  
+get_inside = function(cellID, img, cell_boundaries) {
+  
+  cell_boundary = cell_boundaries |>
+    filter(cell_id %in% cellID)
+  
+  # rescale the boundary according to the pixels
+  pixels = dim(img)
+  cell_boundary$vertex_x_scaled <- 1+((cell_boundary$vertex_x - min(cell_boundary$vertex_x))/0.2125)
+  cell_boundary$vertex_y_scaled <- 1+((cell_boundary$vertex_y - min(cell_boundary$vertex_y))/0.2125)
+  
+  # identify which pixels are inside or outside of the cell segment using inpolygon
+  pixel_locations = expand.grid(seq_len(nrow(img)), seq_len(ncol(img)))
+  
+  pixels_inside = inpolygon(x = pixel_locations[,1],
+                            y = pixel_locations[,2],
+                            xp = cell_boundary$vertex_x_scaled,
+                            yp = cell_boundary$vertex_y_scaled,
+                            boundary = TRUE)
+  
+  img_inside = img
+  img_inside@.Data <- matrix(pixels_inside, nrow = nrow(img), ncol = ncol(img))
+  
+  return(img_inside)
+}
+
+
+# given an image and the 0-1 image , return the resized masked image - 30,50, 100
+mask_resize = function(img, img_inside, w = 224, h = 224) {
+  
+  img_mask = img*img_inside
+  
+  # then, transform the masked image to the same number of pixels, 50x50
+  img_mask_resized = resize(img_mask, w, h)
+  
+  return(img_mask_resized)
+}
+```
+
+```{r}
+cluster_imgs_masked_resized_clean = c()
+
+for (i in 1: 28){
+  ## extract the files in that particular clusters 
+  cluster_i = list.files(all_cluster[i], full.names = TRUE) 
+  
+  # combines all pictures in the cluster
+  cluster_imgs = sapply(cluster_i, readImage, simplify = FALSE)
+  
+  # extract the cell id name for the boundary
+  cluster_cell_ids = gsub(".*cell_|.png", "", cluster_i)
+  
+  # filter off the cell boundary that are not relevant to this cluster
+  cell_boundaries = cell_boundaries_raw |>
+      filter(cell_id %in% cluster_cell_ids)
+  
+  ## mask the cells that are outside the boundary
+  cluster_imgs_inside = mapply(get_inside, cluster_cell_ids, cluster_imgs, 
+                               MoreArgs = list(cell_boundaries = cell_boundaries), 
+                               SIMPLIFY = FALSE)
+  
+  # resize and combine the inside image with original image cell
+  cluster_imgs_masked_resized = mapply(mask_resize, cluster_imgs, cluster_imgs_inside, SIMPLIFY = FALSE)
+  
+  ## input standardisation by scaling the pixels of image
+  ## needed after masking 
+  # run through each image in that cluster and standardise the pixels 
+  for (j in 1: length(cluster_imgs_masked_resized)){
+
+  cluster_imgs_masked_resized_clean[[j]] = cluster_imgs_masked_resized[[j]]/quantile( cluster_imgs_masked_resized[[j]], 0.99)
+  
+  ## create a new folder to locate the cleaned and standardised image data
+  ## preserve the original data
+  
+    # if there is no folder for cell_images, create one
+  if (!file.exists("Biotechnology/data_processed/cell_images_cleaned/")) {
+    system("mkdir Biotechnology/data_processed/cell_images_cleaned/")
+  }
+  
+  # if there is no folder for the cluster, create one
+  clustval_i = i
+  
+  clustval_i_directory = paste0("Biotechnology/data_processed/cell_images_cleaned/cluster_",clustval_i)
+  if (!file.exists(clustval_i_directory)) {
+     system(paste0("mkdir ", clustval_i_directory))
+  }
+  
+  #save the extracted image as a png file
+  EBImage::writeImage(x = cluster_imgs_masked_resized_clean[[j]],
+                       files = paste0(clustval_i_directory, "/cell_", cluster_cell_ids[j], ".png"),
+                      type = "png")
+  }
+
+}
+
+# display(tile(EBImage::combine(cluster_imgs_masked_resized)), method = "raster")
+```
+
+## Split data into training and testing data directory in 80:20 ratio for clean images 
+
+```{r}
+# Original data directory
+data_dir <- 'Biotechnology/data_processed/cell_images_cleaned/'
+
+# Train and test directories
+train_dir <- 'Biotechnology/data_processed/train_cleaned/'
+test_dir <- 'Biotechnology/data_processed/test_cleaned/'
+
+# Create the train and test directories if they don't exist
+if(!file.exists(train_dir)) {
+  dir.create(train_dir, recursive=TRUE)
+}
+
+if(!file.exists(test_dir)) {
+  dir.create(test_dir, recursive=TRUE)
+}
+
+# Get all cluster folders
+cluster_folders <- sprintf('%s/cluster_%d', data_dir, 1:28)
+
+# Iterate over each cluster folder
+for (folder in cluster_folders) {
+  # Create corresponding train and test folders
+  cluster_num <- strsplit(basename(folder), '_')[[1]][2]
+  train_folder <- sprintf('%s/cluster_%s', train_dir, cluster_num)
+  test_folder <- sprintf('%s/cluster_%s', test_dir, cluster_num)
+  if(!file.exists(train_folder)) {
+    dir.create(train_folder, recursive=TRUE)
+  }
+  if(!file.exists(test_folder)) {
+    dir.create(test_folder, recursive=TRUE)
+  }
+
+  # Split the data into train and test sets
+  file_names <- list.files(folder)
+  set.seed(42)
+  split_indices <- sample.int(length(file_names), size=length(file_names)*0.8, replace=FALSE)
+  train_file_names <- file_names[split_indices]
+  test_file_names <- file_names[-split_indices]
+  
+  # Move the train images to the train folder with the same names
+  for (train_file in train_file_names) {
+    src_file <- file.path(folder, train_file)
+    dst_file <- file.path(train_folder, train_file)
+    file.copy(src_file, dst_file)
+  }
+
+  # Move the test images to the test folder with the same names
+  for (test_file in test_file_names) {
+    src_file <- file.path(folder, test_file)
+    dst_file <- file.path(test_folder, test_file)
+    file.copy(src_file, dst_file)
+  }
+}
+```
+
+## Split data into training and testing data directory in 80:20 ratio for raw images   
+
+```{r}
+# Original data directory
+data_dir <- 'Biotechnology/data_processed/cell_images/'
+
+# Train and test directories
+train_dir <- 'Biotechnology/data_processed/train_cluster_raw/'
+test_dir <- 'Biotechnology/data_processed/test_cluster_raw/'
+
+# Create the train and test directories if they don't exist
+if(!file.exists(train_dir)) {
+  dir.create(train_dir, recursive=TRUE)
+}
+
+if(!file.exists(test_dir)) {
+  dir.create(test_dir, recursive=TRUE)
+}
+
+# Get all cluster folders
+cluster_folders <- sprintf('%s/cluster_%d', data_dir, 1:28)
+
+# Iterate over each cluster folder
+for (folder in cluster_folders) {
+  # Create corresponding train and test folders
+  cluster_num <- strsplit(basename(folder), '_')[[1]][2]
+  train_folder <- sprintf('%s/cluster_%s', train_dir, cluster_num)
+  test_folder <- sprintf('%s/cluster_%s', test_dir, cluster_num)
+  if(!file.exists(train_folder)) {
+    dir.create(train_folder, recursive=TRUE)
+  }
+  if(!file.exists(test_folder)) {
+    dir.create(test_folder, recursive=TRUE)
+  }
+
+  # Split the data into train and test sets
+  file_names <- list.files(folder)
+  set.seed(42)
+  split_indices <- sample.int(length(file_names), size=length(file_names)*0.8, replace=FALSE)
+  train_file_names <- file_names[split_indices]
+  test_file_names <- file_names[-split_indices]
+  
+  # Move the train images to the train folder with the same names
+  for (train_file in train_file_names) {
+    src_file <- file.path(folder, train_file)
+    dst_file <- file.path(train_folder, train_file)
+    file.copy(src_file, dst_file)
+  }
+
+  # Move the test images to the test folder with the same names
+  for (test_file in test_file_names) {
+    src_file <- file.path(folder, test_file)
+    dst_file <- file.path(test_folder, test_file)
+    file.copy(src_file, dst_file)
+  }
+}
+```
+

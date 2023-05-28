@@ -1,0 +1,787 @@
+---
+title: "Cell Image Classification Using Deep Learning"
+author: "Image 4"
+date: "2023-05-28"
+format: 
+  html: 
+    self-contained: true # Creates a single HTML file as output
+    code-fold: true # Code folding; allows you to show/hide code chunks
+    code-tools: true # Includes a menu to download the code file
+    theme: "blood"
+table-of-contents: true # (Optional) Creates a table of contents!
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(knitr)
+```
+
+# Executive Summary 
+
+This project explores a deep-learning approach for cell classifications as traditional methods are labour-intensive, time-consuming, lack feature representation and generalisability. Hence, we aim to find the best deep-learning model by observing the effects of stratification and data cleaning on the performance of pre-trained CNN and Transformer architectures by using the image data from 28 cluster microscopy images of the coronal section of the mouse brain.
+
+From the analysis accuracy, confusion matrix, Grad-CAM and model size (storage), the best model was CNN with independent, clean data as it had the best accuracy, interpretability and least overfitting as observed from the confusion matrix.
+
+The analysis provides insight into the type of input that should be used to maximise performance on pre-trained CNN or Transformer architecture, reducing the costs for creating neural models by eliminating the need to test models with lower performance.
+
+# Report 
+
+## 1. Introduction 
+
+We propose a deep learning approach to overcome the traditional manual analysis's limitations in cell image classification, a crucial task in domains such as biology and medicine. Manual methods, despite being labour-intensive and time-consuming, often fall short in feature representation and generalisation.
+
+Our work is significant for sectors like pharmaceutical companies engaged in drug discovery and cell behaviour analysis. The proposed method improves efficiency and productivity, offering reliable results that could significantly reduce the time and costs tied to medical research.
+
+Deep learning models bring several advantages including automated feature learning, better generalisation and a streamlined process. They eliminate the need for manual feature engineering by learning important features from raw data, enhancing cell classification effectiveness.
+
+Our research addresses two main areas. First, we aim to enhance the interpretability of deep learning models, thereby helping researchers understand the underlying patterns the models use, which is essential for insights into the decision-making process. Second, we aim to investigate the impact of training data variations on the performance of various neural architectures. By systematically tweaking the training data and observing model performance, we aim to understand our models' robustness and adaptability for cell classification tasks.
+
+```{r, fig.cap="Figure 1: Project Schematic Overview - Four key phases of the project"}
+knitr::include_graphics("Figure1.png")
+```
+
+## 2. Methodology 
+
+### 2.1 Methodology overview
+
+Figure 1 illustrates the research process, including data collection, initial data analysis, data cleaning and preprocessing, model design, training and optimisation, as well as evaluation.
+
+
+### 2.2 Data Collection
+
+We obtained the data from 10X Genomics (2023), consisting of microscopy images of the mouse brain coronal section in the Tagged Image File Format (TIFF or TIF). The gene expression levels of each cell were categorised into 28 distinct clusters, identified by cluster IDs ranging from 1 to 28 and a CSV file with columns for cell IDs and corresponding clusters was extracted.
+
+Cell boundaries data was used to extract individual cell images (~36000 images) from the full size image, instead of using the provided set of images (~1000 images) to maximise the performance of the final model. Each cell image was saved as a PNG file in the corresponding cluster folder named in the format - "Cell_{X}" - where X represents the unique cell id given to each cell.
+
+
+### 2.3 Initial Data Analysis
+
+```{r, cache = TRUE, fig.cap = "Figure 2: Initial Data Analysis : Number of images per cluster (left) and Dimensions of each images in data(right)"}
+knitr::include_graphics("EDA.png")
+```
+
+Figure 2(Left)  illustrates a notable trend of the rising number of images from cluster 28 to cluster 1. This observation highlights a substantial imbalance in the distribution of clusters within the dataset, which should be taken into careful consideration during the model training process. 
+
+Figure 2(Right) highlights varying dimensions of images in the dataset, emphasising the need for proper resizing to enable efficient feature extraction and representation (Code used included in Appendix 1).
+
+
+### 2.4 Data Cleaning and Preprocessing
+We first resized all images to a resolution of 224 x 224 pixels to ensure compatibility with pre-trained models and to improve the computational efficiency of the training process. Then we normalised each pixel by dividing the pixel value by the 99th percentile pixel value to minimise any potential variation in pixel intensity.
+
+The pixels outside the cell boundaries were masked and by isolating the region of interest, it reduced noise in the images. The generated clean images were saved separately from the original data, and was managed using the same file structure. 
+
+
+### 2.5 Model Development
+
+#### 2.5.1 Model and training data design
+
+Two neural architectures, Convolutional Neural Networks (CNNs) and Transformers were chosen for comparison in this project. CNNs are effective in capturing spatial information and extracting hierarchical features from images, while Transformers excel in modelling global context and dependencies within images.
+
+The raw and clean data were divided into train-validation set and test set using an 80:20 split ratio stratified sampling. Then the train-validation set was again split into 80:20 ratio, independently or stratified. Mix of stratified sampling and independent sampling was used to explore the impact of different sampling methods. As the data has significant imbalance between clusters, stratified models are expected to perform better.
+
+In total, 8 models will be developed to investigate various combinations of architectures, sampling methods, and types of data (raw and clean). 
+
+### 2.5.2 Model Building and Training 
+ 
+For the models, categorical cross-entropy loss function was used with a batch size of 128 was used and 30 epochs were done. These choices balanced model convergence and computational time, optimised resource usage, and maintained accurate gradient estimation. We monitored plots to detect overfitting and underfitting (see Appendix 1).
+
+We also employed pre-trained models (Resnet50V2 for CNN and Vision Transformers for Transformers) to leverage existing knowledge, improve efficiency and generalisation. (Appendix 2&3)
+
+**CNN**
+
+ResNet50V2 has 50 layers and includes convolutional blocks with shortcut connections; this model addresses the challenge of vanishing gradients in deep networks by using residual blocks with skip connections. These connections enable the model to effectively learn residual mappings, capturing the differences between the input and desired output. From the pretrained ResNet50V2 classification layer was replaced and the last three layers were unfreezed to fine tune the model.
+
+**Transformer**
+
+The transformer architecture consists of stacked transformer blocks, connected through attention connections. This allows the model to selectively focus on different parts of the input sequence during generation.
+
+Vision transformers convert 2D images into patch sequences, processed via a self-attention mechanism for meaningful image representations. The multi-head mechanism of vision transformers allows the model to attend to multiple positions or patches simultaneously. Each position has its own attention weights, which are combined to capture a wide range of patterns and relationships within the image. Feed-forward neural networks are also applied to each patch, incorporating non-linear activations to capture complex relationships.
+
+
+### 2.5.3 Model Optimisation
+
+All models were optimised until validation accuracy higher than 15% threshold, significantly higher than random guess probability of 1/28. The following optimization techniques were applied. Github link for the Python code found in appendix.
+
+- Data Augmentation
+
+* Applies various transformations to increase the size of the training dataset
+
+  +Rotation Range 
+  +Width Shift Range 
+  +Height Shift Range
+  +Shear Range
+  +Zoom Range 
+  +Horizontal Flip 
+  +Fill Mode
+* Ensure model is robust and generalisable
+
+- Adam Optimisers with Decaying Learning Rate Schedule
+* Fine-tune the model's learning process
+* Enhancing its generalisation and performance by adaptively optimising the learning rate during training
+
+- Batch Normalisation
+* Normalises the inputs within each mini-batch during training
+* Enables faster training by reducing internal covariate shift
+* Improves generalisation by stabilising the learning process
+
+- Early stopping
+* Monitors the validation loss during training and stops the training process if there is no improvement within the specified patience
+* Restore the best weights of the model on the validation set
+* Prevents overfitting, saves computational resources, and avoids unnecessary training epochs
+
+- L2 Regularizer
+ * Applied to the model's weights by adding an additional term to the loss function. 
+ * Promotes smaller weights, reduces overfitting, and encourages generalisation by preventing over-reliance on individual features
+
+
+- Dropout (CNN)
+ * Randomly disabling parts of the model during training forces the network to learn more robust and generalised features, 
+ * Reduces overfitting by encouraging the model to focus on salient features
+ * Improves computational efficiency 
+
+
+
+### 2.6 Evaluation
+For evaluation classification performance of our models were measured using unseen data to assess the model’s generalisability. Accuracy was our primary quantitative evaluation metrics as it is simple and intuitive and side-by-side bar plots to visualise the accuracy.  Confusion matrix was used to identify misclassifications across different clusters, and assess any imbalances or biases present in the classification results.
+
+Gradient-weighted Class Activation Mapping (Grad-CAM) for CNN and Spatially Adaptive Activation Value (SAAV) for Transformers allow us to visualise where the model was focused on. Allowing us to qualitatively assess if the models correctly identified relevant patterns. Deviations from expected patterns indicate the need for further training or data collection efforts to enhance pattern understanding (Team, n.d.).
+
+Storage requirement was also measured to optimise resource allocation by minimising the storage resources needed for deploying and running the models, thus enhancing cost-effectiveness.
+
+The model selection process prioritises accuracy and confusion matrix outputs. Grad-CAM and SAAV were used to assess the interpretability and the validity of the models and more interpretable models with slightly lower accuracy are considered as a potential candidate. Lastly, the models with smaller size are preferred.
+
+This approach allowed us to choose a final model that struck a balance between satisfactory accuracy, interpretability, and cost-effectiveness. These factors were deemed important for our stakeholders.
+
+
+## 3 Results 
+
+
+### 3.1 Performance Metrics 
+
+* Accuracy
+
+```{r}
+## add a table 
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+
+
+
+# Make sure the "Model_result" folder is in the same directory as below, else change your file path
+library(ggplot2)
+output1 = read.csv("Biotechnology/Model_result/output_clean_independent_cnn.csv")
+output2 = read.csv("Biotechnology/Model_result/output_raw_independent_cnn.csv")
+output3 = read.csv("Biotechnology/Model_result/output_clean_stratified_cnn.csv")
+output4 = read.csv("Biotechnology/Model_result/output_raw_stratified_cnn.csv")
+output5 = read.csv("Biotechnology/Model_result/output_clean_independent_transformers.csv")
+output6 = read.csv("Biotechnology/Model_result/output_raw_independent_transformers.csv")
+output7 = read.csv("Biotechnology/Model_result/output_clean_stratified_transformers.csv")
+output8 = read.csv("Biotechnology/Model_result/output_raw_stratified_transformers.csv")
+
+accuracy1 = unique(output1$Test.Accuracy)
+accuracy2 = unique(output2$Test.Accuracy)
+accuracy3 = unique(output3$Test.Accuracy)
+accuracy4 = unique(output4$Test.Accuracy)
+accuracy5 = unique(output5$Test.Accuracy)
+accuracy6 = unique(output6$Test.Accuracy)
+accuracy7 = unique(output7$Test.Accuracy)
+accuracy8 = unique(output8$Test.Accuracy)
+
+Test = NA
+
+Test <- data.frame(
+  Model = c("Independent Split - Clean", "Independent Split - Raw", "Stratified Split - Clean","Stratified Split - Raw", "Independent Split - Clean", "Independent Split - Raw" ,"Stratified Split - Clean", "Stratified Split - Raw"),
+  Architecture = c("CNN","CNN","CNN","CNN","Tranformers","Tranformers", "Tranformers","Tranformers"),
+  Accuracy = c(accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8)
+)
+
+Test$Model = as.factor(Test$Model)
+Test$Architecture = as.factor(Test$Architecture)
+
+
+library(knitr)
+# Create a data frame with the given data
+data <- data.frame(
+  Architecture = c("CNN", "CNN", "CNN", "CNN", "Transformers", "Transformers", "Transformers", "Transformers"),
+  Sampling_Method = c("Independent", "Independent", "Stratified", "Stratified", "Independent", "Independent", "Stratified", "Stratified"),
+  Data_Types = c("Clean", "Raw", "Clean", "Raw", "Clean", "Raw", "Clean", "Raw"),
+  Accuracy = c(unique(output1$Test.Accuracy), unique(output2$Test.Accuracy), unique(output3$Test.Accuracy), unique(output4$Test.Accuracy),unique(output5$Test.Accuracy), unique(output6$Test.Accuracy), unique(output7$Test.Accuracy),  unique(output8$Test.Accuracy)))
+colnames(data)= c("Neural Architecture", "Sampling Method", "Data Types", "Accuracy")
+
+# Convert the dataframe to a table using kable
+#knitr::kable(data)
+kable(data)
+```
+
+
+```{r, fig.cap = "Fig 1 : Test accuracy for all models"}
+
+p1 = ggplot(data = Test) +
+  geom_bar(aes(x = Model, y = Accuracy, fill = Architecture), stat = "identity", position = "dodge") +
+  labs(title = "Test Accuracy by Model",
+       x = "Training Data",
+       y = "Accuracy") +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1)) + 
+    scale_fill_brewer(palette = "Set3")
+p1
+
+```
+
+CNN and Transformers models demonstrate improved performance when trained on clean data compared to raw data. However, there was a notable difference in the preferred data sampling strategy, whilst CNN models benefited from independent sampling, Transformers models yielded better results with stratified sampling. On average, CNN models outperform the Transformers model. 
+The best model in terms of accuracy was CNN architecture, independent sampling with clean data. The worst performing model was Transformer, independent sampling with raw data. 
+
+* Confusion Matrix
+
+```{r , fig.cap = "Figure 4 : Confusion Matrix (X: Predicted Labels, Y: True Labels)" }
+
+library(cowplot)
+library(magick)
+
+# Read the PNG images
+image1 <- image_read("Confusion_Matrix/Cmax_CNN_Whole_Clean.png")
+image2 <- image_read("Confusion_Matrix/Cmax_CNN_Whole_Raw.png")
+image3 <- image_read("Confusion_Matrix/Cmax_CNN_Stratified_Clean.png")
+image4 <- image_read("Confusion_Matrix/Cmax_CNN_Stratified_Raw.png")
+image5 <- image_read("Confusion_Matrix/Cmax_ViT_Clean_Whole.png")
+image6 <- image_read("Confusion_Matrix/Cmax_ViT_Raw_Whole.png")
+image7 <- image_read("Confusion_Matrix/Cmax_ViT_Clean_Stratified.png")
+image8 <- image_read("Confusion_Matrix/Cmax_ViT_Raw_Stratified.png")
+
+# Set the subcaptions for each image
+subcaptions <- c("CNN :Independent Clean", "CNN :Independent Raw", "CNN :Stratified Clean", "CNN :Stratified Raw", "Transformer: Independent Clean", "Transformer: Independent Raw", "Transformer: Stratified Clean", "Tranformer: Stratified Raw")
+
+# Create plots using the images and add subcaptions
+plot1 <- ggdraw() + draw_image(image1) +
+  draw_label(subcaptions[1], size = 8, fontface = "bold", x = 0.5, y = 0.02, hjust = 0.5)
+plot2 <- ggdraw() + draw_image(image2) +
+  draw_label(subcaptions[2], size = 8, fontface = "bold", x = 0.5, y = 0.02, hjust = 0.5)
+plot3 <- ggdraw() + draw_image(image3) +
+  draw_label(subcaptions[3], size = 8, fontface = "bold", x = 0.5, y = 0.02, hjust = 0.5)
+plot4 <- ggdraw() + draw_image(image4) +
+  draw_label(subcaptions[4], size = 8, fontface = "bold", x = 0.5, y = 0.02, hjust = 0.5)
+plot5 <- ggdraw() + draw_image(image5) +
+  draw_label(subcaptions[5], size = 8, fontface = "bold", x = 0.5, y = 0.02, hjust = 0.5)
+plot6 <- ggdraw() + draw_image(image6) +
+  draw_label(subcaptions[6], size = 8, fontface = "bold", x = 0.5, y = 0.02, hjust = 0.5)
+plot7 <- ggdraw() + draw_image(image7) +
+  draw_label(subcaptions[7], size = 8, fontface = "bold", x = 0.5, y = 0.02, hjust = 0.5)
+plot8 <- ggdraw() + draw_image(image8) +
+  draw_label(subcaptions[8], size = 8, fontface = "bold", x = 0.5, y = 0.02, hjust = 0.5)
+
+# Arrange the plots in a grid
+grid <- plot_grid(plot1, plot2, plot3, plot4, plot5, plot6, plot7, plot8,
+                  nrow = 2, ncol = 4, align = "hv")
+
+# Display the grid of plots
+print(grid)
+```
+
+The confusion matrix shows consistent overfitting for clusters with more members, however, clusters 3 and 2 were most prone to overfitting and were overfit in all models and were heavily overfit on all of the transformer models. All models displayed heavy class imbalance, which was consistent with the EDA, however cluster 5 was underfit on CNN stratified raw, and was only overfit on CNN stratified clean model. This may be due to cluster 5 sharing gene expression with other clusters.
+
+The confusion matrix for CNN stratified sampling, with clean data show overfitting for clusters 2 and 4 but was well fit for clusters 3 and 5, but with raw data, clusters 1 and 3 show overfitting but was well fit for clusters 2 and 7. Likewise, CNN independent sampling, with clean data cluster 2 and 4 show the most overfitting with best predictions on cluster 1 and 7, but with raw data there was overfitting on cluster 1 and 3, with best predictions being made on cluster 2 and 7. Furthermore, the diagonal lines, which represent correct classification, are most observable from CNN models with independent sampling.
+
+All Transformer models are heavily overfit on clusters 2, 3 and are good at predicting cluster 7. From Transformers, independently sampled models have also overfit clusters 1, 4 and 13, whereas stratified samples did not. The clean data did not have as much of an influence on overfitting, instead improving predictions on cluster 7, by reducing the misclassification of cells in cluster 7 as cluster 13.
+
+
+### 3.2 Interpretability
+
+Appendix 2 reveals that the top-performing CNN model exhibited strong patterns around cell boundaries, indicating that this model has learned to recognise these features as important for cell classification. Conversely, the other 3 CNNs do not exhibit any discernible patterns. In contrast, none of the Transformers models exhibited consistent patterns in recognizing cells as shown in Appendix 3. 
+
+
+### 3.3 Storage 
+
+Transformers require approximately 10 times more storage than CNNs, as illustrated in Appendix 6. 
+
+
+### 3.4 Deployment 
+
+We developed a Shiny application to allow easy interaction and exploration of the model's capabilities. To include the cell types in our visualisation, we first extracted gene expression values for each cluster from external omics data (2023). The top 5 genes associated with each cluster were identified based on their log2-fold change of gene expression values. Considering multiple genes instead of relying on one gene, ensures sensitivity. Each selected gene corresponds to specific cell types, enabling us to assign five probable cell types and determine the most probable cell types for individual cells via majority voting. 
+
+```{r, fig.cap="Figure 5 : Shiny Apps Interactive Features"}
+knitr::include_graphics("Figure5_report.png")
+```
+
+In the visualisation, users can choose from a dropdown list of the eight models. The application offers the flexibility to select specific clusters of interest. The informative plots are presented, accompanied by model-specific accuracy values below each plot. If a specific cluster is selected, the accuracy is tailored to that cluster.
+
+We allow users to adjust the size of the data points, enabling manipulation with data representation according to their preferences.
+
+Furthermore, our Shiny application includes two options for cell exploration. Users can either hover over the plots to identify cells in a specific region of interest or directly input the cell IDs they wish to examine. The tooltip provides essential information such as "Cell ID," "Predicted Cluster," "Probabilities," "Top 5 Genes," and "Cell Type."
+
+## 4 Discussion
+
+### 4.1 Result Interpretation
+
+* Performance metrics 
+
+The performance difference between clean and raw data highlights the significance of data pre-processing and emphasises the need for appropriate data cleaning techniques to improve model robustness and performance.
+
+The performance variations observed between different sampling methods underscore the sensitivity of these models to data distribution. CNNs’ better performance with independent sampling requires further investigation as stratified sampling, which maintains the distribution of data in training data, should provide more accurate results as it is more valid when there is cluster imbalance. Meanwhile, Transformers models achieved better results with stratified sampling as expected. This highlights the importance of selecting the appropriate sampling method based on the specific characteristics of the neural architecture and the underlying data distribution.
+
+The confusion matrix shows the trend of overfitting across all models, mainly caused by the data imbalance. However, the low classification level of cluster 5 shows imbalance in data is not the only cause of overfitting. Since, the clusters are based on the level of gene expression and and, different clusters share many traits, if the gene expression responsible for the shape of the cell is not as prevalent or distinct, it may make the model underpredict the cluster. Furthermore, the diagonal line, representing correct classification, is most observable from CNN models with independent sampling, which may be due to CNN identifying subtle changes in image from gene-expression. Since overfitting is more prevalent in the raw model, CNN model with independent sampling with cleaned data is the best model from confusion matrix analysis.
+
+* Interpretability 
+
+In Appendix The CNN Independent sampling - Clean Data model effectively learns and explains important features, providing insights into its decision-making process. In contrast, the other CNNs lack clear patterns in Grad-CAM, suggesting a limited ability to recognise crucial features, exhibiting lower interpretability. Transformers face challenges in interpretability due to their reliance on self-attention mechanisms, which lack explicit spatial information. These results align with our objective of improving interpretability in deep learning models for cell classification.
+
+* Storage requirement 
+
+Transformers require more storage due to their complex architecture, self-attention mechanisms, and larger parameter size. This trade-off between model complexity and storage should be considered for cost-effectiveness. However, our evaluation demonstrates that CNNs offer superior performance with lower storage requirements, hence providing a cost-effective advantage over Transformers while maintaining competitive performance.
+
+
+### 4.2 Limitations and Future Directions
+
+Although the current research suggests that overfitting is caused by the large class imbalance and the shared gene expression amongst clusters. Further research is needed to quantify and fully understand the full impact.
+
+Furthermore, the current model’s accuracy (<20%) makes it not viable for commercial use. However, further research into a regression based approach, where gene expression values are directly predicted can be done. Thus reducing the impact of overfitting and the issue of shared gene-expression amongst clusters.
+
+Data management and accessibility can also be improved by incorporating a robust database system for storing data and models. Streamlining our workflow and facilitating efficient information retrieval for further analysis.
+
+Workflow can be improved by consolidating and automating the process between data cleaning and model training. As currently data needed for model training in Python needs to be processed in R. Simplifying the process will make it accessible to researchers with diverse backgrounds to utilise our pipeline.
+
+Finally, the study can be applied to different fields of biology, and could be used to help build models to classify other mammal brain cells. The findings from this research can be used as a starting point for other cell classification tasks, aiding in the advancement of microbiology and the understanding of cellular diversity to facilitate novel discoveries.
+
+
+### 4.3 Conclusion
+
+Our study contributes to the field of deep learning for cell classification by enhancing interpretability and evaluating the impact of training data variations on model performance. The CNN model with independent sampling and clean data emerges as the preferred choice for future application, offering improved accuracy, interpretability, and cost-effectiveness. 
+
+The insights from this project provide valuable guidance for researchers working on cell classification tasks and underscore the importance of data quality and sampling strategies. By advancing our understanding of interpretability and training data effects, our research paves the way for future developments in deep learning models for cell classification in biology.
+
+The scalability of our pipeline is limited by the integration of model outputs with CSV files and the transition from Jupyter Notebook to RStudio for deployment, especially when working with large datasets. Due to computational constraints, we were unable to perform cross-validation on the results, which may affect the reliability of our findings.
+
+
+
+## Contribution
+The contributions of the team members to the project are as follows: Jia Hao was responsible for data collection and preprocessing. Louis, Jun Han, Ting Yu, Michael, and Jia Hao contributed to model building, training, and optimization, which involved writing codes. Additionally, Jia Hao and Hana were involved in the deployment of the final products, where they wrote R codes in RStudio. All team members actively participated in making observations and were involved in the process of writing and editing the reports.
+
+
+## References 
+
+* (2023). 10xgenomics.com. https://xenium.10xgenomics.com/image/s3%2F10x.files%2Fxenium%2Fpreview%2Fmbrain%2Fanalysis_summary.html 
+* Grunau, S., Block, D., & Meier, U. (2018). Multi-label wireless interference identification with convolutional neural networks. https://arxiv.org/abs/1804.04395
+* Kim, J., Lee, S., Kim, Y.-H., & Kim, S.-C. (2020). Classification of interference signal for automotive radar systems with convolutional neural network. https://www.researchgate.net/publication/347021656_Classification_of_Interference_Signal_for_Automotive_Radar_Systems_With_Convolutional_Neural_Network 
+* Team, K. (n.d.). Keras documentation: Grad-CAM class activation visualization. Keras.io. https://keras.io/examples/vision/grad_cam/
+* Oyedare, T. (2023). Keep It Simple: CNN Model Complexity Studies for Interference Classification Tasks. Ar5iv.org. https://arxiv.org/abs/2303.03326 
+
+## Appendix 
+
+* Github link : [Image4](https://github.com/JunAtHome/DATA3888_image_4)
+
+* Appendix 1
+
+```
+library(dplyr)
+library(ggplot2)
+library(png)
+library(patchwork)
+
+## change according to file path 
+folder_path <- "Biotechnology/data_processed/cell_images"
+clusters <- paste0("cluster_", 1:28)
+df <- data.frame(cluster = character(), num_images = integer(), stringsAsFactors = FALSE)
+for (cluster in clusters) {
+  cluster_path <- file.path(folder_path, cluster)
+  num_images <- length(list.files(cluster_path, pattern = "^cell_.*\\.png$"))
+  df <- df %>% add_row(cluster = cluster, num_images = num_images)}
+df <- df %>% arrange(num_images)
+p1 = ggplot(df, aes(x = reorder(cluster, num_images), y = num_images)) +
+  geom_bar(stat = "identity", fill = "lightblue") +
+  labs(x = "Cluster", y = "Number of Images") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ggtitle("Number of Images per Cluster")
+
+
+image_data <- data.frame(Width = numeric(), Height = numeric())
+
+ for (cluster_num in 1:28) {
+   cluster_dir <- paste0("Biotechnology/data_processed/cell_images/cluster_", cluster_num)
+   file_list <- list.files(cluster_dir, pattern = "^cell_\\d+\\.png$", full.names = TRUE)
+
+   # Determine the number of files to sample
+   sample_size <- ceiling(0.05 * length(file_list))
+
+  # Randomly sample files
+   sampled_files <- sample(file_list, size = sample_size, replace = FALSE)
+   for (file_name in sampled_files) {
+     img <- readPNG(file_name)
+     width <- dim(img)[2]
+     height <- dim(img)[1]
+    image_data <- rbind(image_data, data.frame(Width = width, Height = height))
+   }
+ }
+
+
+ p2 = ggplot(image_data, aes(x = Width, y = Height)) +
+   geom_point(size = 0.2) +
+   xlab("Width") +
+   ylab("Height") +
+   ggtitle("Image Dimensions")
+
+ combined <- p1+ p2 +
+   plot_layout(ncol = 2)
+ combined
+ 
+suppressMessages(ggsave("EDA.PNG", combined,width = 10, height = 6))
+
+```
+
+* Appendix 2 
+```{r, fig.cap = "Sample Training Process"}
+## access the data from history file 
+
+history = read.csv("Biotechnology/History/history_clean_whole_cnn_2.csv")
+
+library(ggplot2)
+library(patchwork)
+# Specify custom colors and labels
+custom_colors <- c("blue", "red")
+custom_labels <- c("Train", "Validation")
+
+# Plot the lines with custom colors and labels
+a1 = ggplot(data = history) +
+  geom_line(aes(x = epoch, y = train_accuracy, color = "Train")) +
+  geom_line(aes(x = epoch, y = validation_accuracy, color = "Validation")) +
+  scale_color_manual(values = custom_colors, labels = custom_labels) +
+  labs(x = "Epoch", y = "Accuracy", title = "Accuracy : CNN Independent - Raw ", colour = "") +
+  theme_bw() + 
+    theme(axis.text = element_text(size = 8),   # Reduce axis text size
+        plot.title = element_text(size = 10))  # Reduce plot title size
+
+# Plot the lines with custom colors and labels
+a2 = ggplot(data = history) +
+  geom_line(aes(x = epoch, y = loss, color = "Train")) +
+  geom_line(aes(x = epoch, y = validation_loss, color = "Validation")) +
+  scale_color_manual(values = custom_colors, labels = custom_labels) +
+  labs(x = "Epoch", y = "Loss", title = "Loss : CNN Independent - Clean", colour = "") +
+  theme_bw() + 
+    theme(axis.text = element_text(size = 8),   # Reduce axis text size
+        plot.title = element_text(size = 10))  # Reduce plot title size
+
+combineda1 <- a1+ a2 + 
+  plot_layout(ncol = 2)
+combineda1
+
+```
+
+* Appendix 3 : CNN code 
+
+```
+import os
+import pandas as pd
+import numpy as np
+from tensorflow.keras import layers
+from tensorflow.keras.models import Sequential
+import tensorflow as tf
+from tensorflow.keras.regularizers import l2
+from tensorflow.keras import layers, models
+from tensorflow.keras.applications import ResNet50V2
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+
+cluster_numbers = list(range(1, 29))
+image_size = 224
+num_classes = len(cluster_numbers)
+batch_size = 128
+
+
+# Define the custom object ClassToken
+class ClassToken(layers.Layer):
+    def __init__(self, **kwargs):
+        super(ClassToken, self).__init__(**kwargs)
+
+
+    def build(self, input_shape):
+        self.class_token = self.add_weight(
+            shape=(1, 1, input_shape[3]),
+            initializer=tf.keras.initializers.TruncatedNormal(stddev=0.02),
+            trainable=True,
+            name="class_token",
+        )
+        super(ClassToken, self).build(input_shape)
+
+
+    def call(self, x):
+        batch_size = tf.shape(x)[0]
+        # Add a class token
+        class_token = tf.broadcast_to(self.class_token, [batch_size, 1, 1, tf.shape(self.class_token)[2]])
+        x = tf.concat([class_token, x], axis=1)
+        return x
+
+
+
+
+train_datagen = ImageDataGenerator(
+    rotation_range=15,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True,
+    fill_mode='nearest'
+)
+
+
+train_generator = train_datagen.flow(
+    train_images,
+    train_labels,
+    batch_size=128,
+    shuffle=True
+)
+
+
+# Load the pre-trained ResNet50V2 model without the top layer (global average pooling and fully connected layers)
+base_model = ResNet50V2(include_top=False, weights='imagenet', input_shape=(224, 224, 3))
+
+
+# Freeze the top layers
+for layer in base_model.layers:
+    layer.trainable = False
+
+
+# Unfreeze the last few convolutional layers and the batch normalization layers
+for layer in base_model.layers[-10:]:
+    if not isinstance(layer, layers.BatchNormalization):
+        layer.trainable = True
+
+
+# Add new top layers for the new dataset
+x = base_model.output
+x = layers.GlobalAveragePooling2D()(x)
+x = layers.Dense(128, activation='relu', kernel_regularizer=l2(0.01))(x)
+x = layers.BatchNormalization()(x)
+x = layers.Dropout(0.4)(x)
+predictions = layers.Dense(num_classes, activation='softmax')(x)
+
+
+# Create the new model by combining the base model and the top layers
+model = models.Model(inputs=base_model.input, outputs=predictions)
+
+
+lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+    initial_learning_rate=1e-4,
+    decay_steps=10000,
+    decay_rate=0.9
+)
+optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
+
+
+early_stopping = tf.keras.callbacks.EarlyStopping(
+    monitor='val_loss',
+    patience=5,
+    restore_best_weights=True
+)
+
+
+# Compile the model
+model.compile(optimizer= optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+
+
+models_dir = 'saved_4_models'
+if not os.path.exists(models_dir):
+    os.makedirs(models_dir)
+
+
+model_checkpoint = tf.keras.callbacks.ModelCheckpoint(
+    os.path.join(models_dir, 'CNN_whole_clean_optimised_last.h5'),
+    monitor='val_loss',
+    save_best_only=True,
+    save_weights_only=False
+)
+epochs = 30
+
+# Train the model with model checkpointing
+history = model.fit(
+    train_generator,
+    steps_per_epoch=len(train_images) // batch_size,
+    epochs=epochs,
+    validation_data=(validation_images, validation_labels),
+    callbacks=[early_stopping, model_checkpoint]
+)
+
+model = tf.keras.models.load_model(os.path.join(models_dir, 'CNN_whole_clean_optimised_last.h5'))
+```
+
+
+* Appendix 4 : Transformers code 
+
+```
+import numpy as np
+import pandas as pd
+import os
+import cv2
+import re
+import sklearn
+from sklearn.model_selection import train_test_split
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from vit_keras import vit
+
+
+def create_vit_model(image_size, num_classes):
+    vit_model = vit.vit_b32(
+        image_size=image_size,
+        activation='softmax',
+        pretrained=False,
+        include_top=True,
+        pretrained_top=False,
+        classes=num_classes
+    )
+
+
+    model = tf.keras.Model(inputs=vit_model.inputs, outputs=vit_model.outputs)
+    return model
+
+
+
+
+
+
+image_size = 224
+num_classes = len(cluster_numbers)
+
+
+model = create_vit_model(image_size, num_classes)
+
+
+lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+    initial_learning_rate=1e-4,
+    decay_steps=10000,
+    decay_rate=0.9
+)
+optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
+
+
+model.compile(
+    optimizer=optimizer,
+    loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
+    metrics=['accuracy']
+)
+
+
+epochs = 30
+batch_size = 128
+
+
+data_augmentation = ImageDataGenerator(
+    rotation_range=15,
+    width_shift_range=0.1,
+    height_shift_range=0.1,
+    shear_range=0.1,
+    zoom_range=0.1,
+    horizontal_flip=True,
+    fill_mode='nearest'
+)
+
+
+train_generator = data_augmentation.flow(train_images, train_labels, batch_size=batch_size)
+
+
+early_stopping = tf.keras.callbacks.EarlyStopping(
+    monitor='val_loss',
+    patience=5,
+    restore_best_weights=True
+)
+
+
+models_dir = 'saved_4_models'
+if not os.path.exists(models_dir):
+    os.makedirs(models_dir)
+
+
+model_checkpoint = tf.keras.callbacks.ModelCheckpoint(
+    os.path.join(models_dir, 'vit_clean_whole3.h5'),
+    monitor='val_loss',
+    save_best_only=True,
+    save_weights_only=False
+)
+
+
+history = model.fit(
+    train_generator,
+    steps_per_epoch=len(train_images) // batch_size,
+    epochs=epochs,
+    validation_data=(validation_images, validation_labels),
+    callbacks=[early_stopping, model_checkpoint]
+)
+
+
+model = tf.keras.models.load_model(os.path.join(models_dir, 'vit_clean_whole3.h5'))
+```
+
+* Appendix 5 : Grad Cam
+```{r, fig.cap = "Interpretability for CNN Models"}
+library(gridExtra)
+library(patchwork)
+library(gridExtra)
+library(gridGraphics)
+
+library(magick)
+
+
+
+# Read the PNG image
+image1 <- image_read("Interpretability/Grad_Cam_Independent_Clean.png")
+image2 <- image_read("Interpretability/Grad_Cam_Independent_Raw.png")
+image3 <- image_read("Interpretability/Grad_Cam_Stratified_Clean.png")
+image4 <- image_read("Interpretability/Grad_Cam_Stratified_Raw.png")
+
+img = c(image1, image2, image3, image4)
+image_append(image_scale(img, "x300"))
+
+```
+
+
+* Appendix 6 : SAAV 
+
+```{r, fig.cap = "Interpretability for transformers models"}
+library(cowplot)
+library(magick)
+# 
+ # Read the PNG image
+ image1a <- image_read("Interpretability/SAAV_Whole_Clean2.png")
+ image2a <- image_read("Interpretability/SAAV_Whole_Raw2.png")
+ image3a <- image_read("Interpretability/SAAV_Stratified_Clean2.png")
+ image4a <- image_read("Interpretability/SAAV_Stratified_Raw2.png")
+# Set the subcaptions for each image
+
+ subcaptions <- c("Independent Clean", "Independent Raw", "Stratified Clean", "Stratified Raw")
+
+# Create plots using the images and add subcaptions
+plot1 <- ggdraw() + draw_image(image1a) +
+  draw_label(subcaptions[1], size = 12, fontface = "bold", x = 0.5, y = 0.02, hjust = 0.5)
+plot2 <- ggdraw() + draw_image(image2a) +
+  draw_label(subcaptions[2], size = 12, fontface = "bold", x = 0.5, y = 0.02, hjust = 0.5)
+plot3 <- ggdraw() + draw_image(image3a) +
+  draw_label(subcaptions[3], size = 12, fontface = "bold", x = 0.5, y = 0.02, hjust = 0.5)
+plot4 <- ggdraw() + draw_image(image4a) +
+  draw_label(subcaptions[4], size = 12, fontface = "bold", x = 0.5, y = 0.02, hjust = 0.5)
+
+# Arrange the plots in a grid
+grid <- plot_grid(plot1, plot2, plot3, plot4,
+                  nrow = 1, ncol = 4, align = "hv")
+
+# Display the grid of plots
+print(grid)
+
+```
+
+* Appendix 7
+```{r}
+library(htmlTable)
+# Create a data frame with the given data
+data <- data.frame(
+  Architecture = c("CNN", "CNN", "CNN", "CNN", "Transformers", "Transformers", "Transformers", "Transformers"),
+  Sampling_Method = c("Independent", "Independent", "Stratified", "Stratified", "Independent", "Independent", "Stratified", "Stratified"),
+  Data_Types = c("Clean", "Raw", "Clean", "Raw", "Clean", "Raw", "Clean", "Raw"),
+  Storage_MB = c("119.5","119.5","119.5","119.5", "1101.8","1101.8","1101.8","1101.8"))
+
+colnames(data)= c("Neural Architecture", "Sampling Method", "Data Types", "Storage(MB)")
+
+# Convert the dataframe to a table using kable
+knitr::kable(data)
+
+```
