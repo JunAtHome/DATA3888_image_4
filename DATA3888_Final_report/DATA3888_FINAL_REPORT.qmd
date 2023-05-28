@@ -1,0 +1,33 @@
+---
+title: "DATA3888_FINAL_REPORT"
+date: "`r format(Sys.time(), '%d %B, %Y %H:%M')`"
+author: "Your SID (don't put your name, so that we can respect the anonymous marking policy)"
+# bibliography: [refs/bibliography.bibtex, refs/Packages.bib]
+format: 
+  html: 
+    self-contained: true # Creates a single HTML file as output
+    code-fold: true # Code folding; allows you to show/hide code chunks
+    code-tools: true # Includes a menu to download the code file
+table-of-contents: true # (Optional) Creates a table of contents!
+number-sections: true # (Optional) Puts numbers next to heading/subheadings
+---
+
+# Introduction
+
+## Running Code
+
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
