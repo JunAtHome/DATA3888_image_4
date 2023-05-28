@@ -8,7 +8,8 @@ Run the "DATAT3888.Rmd" files with all the files and folder in Github downloaded
 To deploy the Shiny Apps successfully, ensure that you have the "Shiny_Apps.Rmd" files in the same directory as the "shiny_output" folder. The "shiny_output" folder contains the output files of the eight models. This setup will enable the Shiny Apps to access and utilize the model outputs.
 
 
-# NOTE FOR BELOW: To completely reproduce the whole project, in addition to all files in Github, you will need to obtain the tif.file from https://canvas.sydney.edu.au/courses/47736/pages/biotechnology-data-science-image-analysis, under Resources : Biotechnology data bundle ~400MB. The file path to the tif file : "Biotechnology/data_raw/morphology_focus.tif" and move it to the same file path as where you found it within our "Biotechnology" folder in Github. 
+# NOTE FOR BELOW: 
+To completely reproduce the whole project, in addition to all files in Github, you will need to obtain the tif.file from https://canvas.sydney.edu.au/courses/47736/pages/biotechnology-data-science-image-analysis, under Resources : Biotechnology data bundle ~400MB. The file path to the tif file : "Biotechnology/data_raw/morphology_focus.tif" and move it to the same file path as where you found it within our "Biotechnology" folder in Github. 
 
 ## To generate all cell images 
 - Head to "Biotechnology/script/DATA3888_Biotechnology_generateImages_2023.Rmd" and follow the instructions to run the code. A folder with 28 subfolders in it will be created with different number of images in each folder. 
