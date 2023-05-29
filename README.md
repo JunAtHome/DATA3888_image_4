@@ -3,9 +3,10 @@ This project, titled DATA3888_image_4, focuses on cell image analysis and model 
 
 ## To Reproduce report ONLY
 Run the "DATAT3888.Rmd" files with all the files and folder in Github downloaded in the same hierachical file structure
+-> Some figures can ony be reproduced with the cell_images and deep-learning trained model, which both are too large to be uploaded to Github or zipped, hence images saved and used directly in report. SessionInfo() at the bottom of the "DATA3888.Rmd" provides necessary package to reproduce this report
 
 ## To deploy Shiny Apps ONLY 
-To deploy the Shiny Apps successfully, ensure that you have the "Shiny_Apps.Rmd" files in the same directory as the "shiny_output" folder. The "shiny_output" folder contains the output files of the eight models. This setup will enable the Shiny Apps to access and utilize the model outputs.
+To deploy the Shiny Apps successfully, ensure that you have the "Shiny_Apps.Rmd" files in the same directory as the "shiny_output" folder. The "shiny_output" folder contains the output files of the eight models. This setup will enable the Shiny Apps to access and utilize the model outputs. Refer to the bottom of "Shiny_Apps.Rmd" file for "SessionInfo()" for necessary packages to run the Shiny Apps
 
 
 # NOTE FOR BELOW: 
